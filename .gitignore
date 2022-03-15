@@ -1,0 +1,11 @@
+.DS_Store
+.env*
+.env*.template
+node_modules/
+
+*.crt
+*.key
+*.pem
+
+data/
+log/

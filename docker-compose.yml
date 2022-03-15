@@ -1,0 +1,30 @@
+networks:
+  bookshelf:
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+    restart: always
+    environment:
+      - PORT=8080
+      - BACKEND_URL=http://backend.local:8080
+    ports:
+      - 10000:8080
+    networks:
+      bookshelf:
+        aliases:
+          - frontend.local
+
+  backend:
+    build:
+      context: ./backend
+    restart: always
+    environment:
+      - PORT=8080
+    ports:
+      - 10001:8080
+    networks:
+      bookshelf:
+        aliases:
+          - backend.local
