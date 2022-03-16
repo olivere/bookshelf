@@ -11,6 +11,10 @@ build:
 deploy:
 	CDK_DEPLOY_ACCOUNT=$(CDK_DEPLOY_ACCOUNT) CDK_DEPLOY_REGION=$(CDK_DEPLOY_REGION) npx cdk deploy
 
+.PHONY: destroy
+destroy:
+	CDK_DEPLOY_ACCOUNT=$(CDK_DEPLOY_ACCOUNT) CDK_DEPLOY_REGION=$(CDK_DEPLOY_REGION) npx cdk destroy
+
 .PHONY: bootstrap
 bootstrap:
 	CDK_NEW_BOOTSTRAP=1 npx cdk bootstrap \

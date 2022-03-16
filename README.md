@@ -16,7 +16,7 @@ In a nutshell:
 4. `make build down up` or `make build restart` for a typical dev cycle.
 
 To push the images into ECR repositories (after configuring your AWS account),
-run `make push`.
+run `make push` in the directory of each service.
 
 ## Deployment on AWS
 
