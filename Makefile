@@ -18,3 +18,7 @@ up:
 .PHONY: down
 down:
 	docker-compose down
+
+.PHONY: restart
+restart:
+	docker-compose up --build -d

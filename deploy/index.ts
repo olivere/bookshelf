@@ -75,8 +75,12 @@ class BookshelfStack extends cdk.Stack {
 // Create a new app and deploy the stack.
 const app = new cdk.App();
 
-new BookshelfStack(app, "Bookshelf", {
+new BookshelfStack(app, "dev", {
   maxAzs: 2,
+  env: {
+    account: process.env.CDK_DEPLOY_ACCOUNT || process.env.CDK_DEFAULT_ACCOUNT,
+    region: process.env.CDK_DEPLOY_REGION || process.env.CDK_DEFAULT_REGION,
+  },
 });
 
 // Creates the CloudFormation template in cdk.out

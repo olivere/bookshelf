@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"runtime/debug"
 	"syscall"
 	"time"
 
@@ -105,10 +106,24 @@ func rootHandler() http.Handler {
 			Service  string    `json:"service"`
 			Time     time.Time `json:"time"`
 			Hostname string    `json:"hostname"`
+			Runtime  struct {
+				Version string `json:"version"`
+			} `json:"runtime,omitempty"`
+			Build struct {
+				Settings map[string]interface{} `json:"settings,omitempty"`
+			} `json:"build,omitempty"`
 		}{
 			Service:  "backend",
 			Time:     time.Now(),
 			Hostname: hostname,
+		}
+		data.Runtime.Version = runtime.Version()
+		info, ok := debug.ReadBuildInfo()
+		if ok {
+			data.Build.Settings = make(map[string]interface{})
+			for _, setting := range info.Settings {
+				data.Build.Settings[setting.Key] = setting.Value
+			}
 		}
 
 		httputil.WriteJSON(w, data)

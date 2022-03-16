@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"log"
 	"net"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"runtime/debug"
 	"syscall"
 	"time"
 
@@ -102,41 +104,80 @@ func runMain() error {
 func rootHandler(backendURL string) http.Handler {
 	hostname, _ := os.Hostname()
 
+	type service struct {
+		Status   int         `json:"status,omitempty"`
+		Took     string      `json:"took,omitempty"`
+		Response interface{} `json:"response,omitempty"`
+		Error    string      `json:"error,omitempty"`
+	}
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		data := struct {
 			Service  string    `json:"service"`
 			Time     time.Time `json:"time"`
 			Hostname string    `json:"hostname"`
-			Backend  struct {
-				Status int    `json:"status,omitempty"`
-				Took   string `json:"took,omitempty"`
-				Error  string `json:"error,omitempty"`
-			} `json:"backend,omitempty"`
+			Runtime  struct {
+				Version string `json:"version"`
+			} `json:"runtime,omitempty"`
+			Build struct {
+				Settings map[string]interface{} `json:"settings,omitempty"`
+			} `json:"build,omitempty"`
+			Services map[string]service `json:"services,omitempty"`
 		}{
 			Service:  "frontend",
 			Time:     time.Now(),
 			Hostname: hostname,
+			Services: make(map[string]service),
+		}
+		data.Runtime.Version = runtime.Version()
+		info, ok := debug.ReadBuildInfo()
+		if ok {
+			data.Build.Settings = make(map[string]interface{})
+			for _, setting := range info.Settings {
+				data.Build.Settings[setting.Key] = setting.Value
+			}
 		}
 
-		if httputil.QueryBool(r, "check", false) {
+		// Check the services
+		if svcs := httputil.QueryStringArray(r, "services", nil); len(svcs) > 0 {
 			g, ctx := errgroup.WithContext(r.Context())
 
-			g.Go(func() error {
-				start := time.Now()
-				req, _ := http.NewRequestWithContext(ctx, "GET", backendURL, http.NoBody)
-				resp, err := httpClient.Do(req)
-				if err != nil {
-					data.Backend.Error = err.Error()
-					data.Backend.Status = http.StatusServiceUnavailable
-				} else {
-					data.Backend.Status = resp.StatusCode
+			for _, svc := range svcs {
+				// TODO Make this independent of the backendURL
+				var url string
+				if svc == "backend" {
+					url = backendURL
 				}
-				data.Backend.Took = time.Since(start).String()
-				return nil
-			})
+				if url != "" {
+					g.Go(func() error {
+						start := time.Now()
+						req, _ := http.NewRequestWithContext(ctx, "GET", backendURL, http.NoBody)
+						resp, err := httpClient.Do(req)
+						if err != nil {
+							data.Services[svc] = service{
+								Error:  err.Error(),
+								Status: http.StatusServiceUnavailable,
+								Took:   time.Since(start).String(),
+							}
+						} else {
+							defer resp.Body.Close()
+							var body map[string]interface{}
+							_ = json.NewDecoder(resp.Body).Decode(&body)
+							data.Services[svc] = service{
+								Status:   resp.StatusCode,
+								Took:     time.Since(start).String(),
+								Response: body,
+							}
+						}
+						return nil
+					})
+				}
+			}
 
-			if err := g.Wait(); err != nil {
-				log.Printf("unable to check service: %v", err)
+			if len(svcs) > 0 {
+				if err := g.Wait(); err != nil {
+					log.Printf("unable to check service: %v", err)
+				}
 			}
 		}
 

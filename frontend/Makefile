@@ -1,6 +1,6 @@
 GO?=go
 IMAGENAME=bookshelf/frontend:latest
-ECR=935517411172.dkr.ecr.eu-central-1.amazonaws.com
+ECR=$(AWS_ACCOUNT_ID).dkr.ecr.eu-central-1.amazonaws.com
 
 default: build
 
